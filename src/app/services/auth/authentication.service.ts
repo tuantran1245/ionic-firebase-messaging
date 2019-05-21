@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, of } from 'rxjs';
 
 import * as firebase from 'firebase/app';
 import { AngularFireAuth } from '@angular/fire/auth';
@@ -32,7 +32,7 @@ export class AuthenticationService {
       if (user) {
         return this.afStore.doc<UserCertificate>(`users/${user.uid}`).valueChanges();
       } else {
-        return null;
+        return of(null);
       }
     }));
   }
@@ -120,6 +120,12 @@ export class AuthenticationService {
     };
 
     return userReference.set(data, {merge: true});
+  }
+
+  signOut() {
+    this.afAuth.auth.signOut().then(() => {
+      this.navCtrl.navigateRoot(['/']);
+    });
   }
 
 }
