@@ -36,12 +36,16 @@ export class AuthenticationService {
     this.user = this.afAuth.authState.pipe(switchMap(user => {
       if (user) {
         this.userId = user.uid;
-
         return this.afStore.doc<UserCertificate>(`users/${user.uid}`).valueChanges();
       } else {
         return of(null);
       }
     }));
+
+    this.afAuth.authState.subscribe(() => {
+      this.updateStatusOnConnected();
+      this.updateStatusWhenDisconnected();
+    });
   }
 
   doGoogleLogin() {
@@ -53,8 +57,6 @@ export class AuthenticationService {
       this.afAuth.auth.signInWithPopup(provider).then((credential) => { // get uid
             this.afStore.doc(`users/${credential.user.uid}`).ref.get() // get full doc belongs to that id
                 .then((userRef) => {
-                  this.updateStatusOnConnected();
-                  this.updateStatusWhenDisconnected();
                   this.loadingIndicator.dismissLoading();
                   console.log('uid: ', credential.user.uid);
                   if (userRef.exists) { // this user has a doc on database
@@ -133,12 +135,6 @@ export class AuthenticationService {
     return userReference.set(data, {merge: true});
   }
 
-  signOut() {
-    this.afAuth.auth.signOut().then(() => {
-      this.navCtrl.navigateRoot(['/']);
-    });
-  }
-
   private updateUserStatus(userStatus) { // online/offline
     if (!this.userId) { return; }
     this.database.object(`users/${this.userId}`).update({ status: userStatus });
@@ -147,12 +143,14 @@ export class AuthenticationService {
   private updateStatusOnConnected() { // update status
     return this.database.object('.info/connected').valueChanges()
         .subscribe((isConnected) => {
+          console.log(`update status online!`);
           console.log(`Is connected: ${isConnected}`);
           isConnected ? this.updateUserStatus('online') : this.updateUserStatus( 'offline');
         });
   }
 
   private updateStatusWhenDisconnected() {
+    console.log(`update status offline!`);
     this.database.object(`users/${this.userId}`).query.ref.onDisconnect()
         .update({status: 'offline'});
   }

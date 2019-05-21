@@ -1,6 +1,5 @@
 import { Component, NgZone, OnInit } from '@angular/core';
 import { AlertController, Events, LoadingController, NavController, NavParams, PopoverController } from '@ionic/angular';
-import { RequestService } from '../services/request/request.service';
 import { ChatService } from '../services/chat/chat.service';
 import { ImageHandleService } from '../services/image/image-handle.service';
 import { UserService } from '../services/user/user.service';
@@ -20,7 +19,6 @@ export class ChatPage {
   username: string;
   avatar: string;
   constructor(public navCtrl: NavController,
-              public requestservice: RequestService,
               public events: Events,
               public alertCtrl: AlertController,
               public chatservice: ChatService,

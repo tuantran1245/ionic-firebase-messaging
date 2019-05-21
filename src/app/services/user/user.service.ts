@@ -1,112 +1,83 @@
 import { Injectable } from '@angular/core';
 import { AngularFireAuth } from '@angular/fire/auth';
 import * as firebase from 'firebase';
+import { AngularFireDatabase } from '@angular/fire/database';
+import { first, map, switchMap, tap } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { NavController } from '@ionic/angular';
 
 @Injectable({
   providedIn: 'root'
 })
 export class UserService {
-  firedata = firebase.database().ref('/chatusers');
-  constructor(private afireAuth: AngularFireAuth) {
-    console.log('Hello UserProvider Provider');
+  constructor(private afAuth: AngularFireAuth,
+              private database: AngularFireDatabase,
+              private navCtrl: NavController) {
+    this.updateOnUser().subscribe();
+    this.updateOnDisconnect().subscribe();
+    this.updateOnAway();
   }
 
-  adduser(newuser) {
-    const promise = new Promise((resolve , reject) => {
-      this.afireAuth.auth.createUserWithEmailAndPassword(newuser.email, newuser.password).then(() => {
-        this.afireAuth.auth.currentUser.updateProfile({
-          displayName: newuser.username,
-          photoURL: 'https://www.limestone.edu/sites/default/files/user.png'
-        }).then(() => {
-          this.firedata.child(this.afireAuth.auth.currentUser.uid).set({
-            uid: this.afireAuth.auth.currentUser.uid,
-            displayName: newuser.username,
-            photoURL: 'https://www.limestone.edu/sites/default/files/user.png'
-          }).then(() => {
-            resolve(true);
-          }).catch((err) => {
-            reject(err);
-          });
-        }).catch((err) => {
-          reject(err);
-        });
-      }).catch((err) => {
-        reject(err);
-      });
-    });
-    return promise;
+  updateOnUser() {
+    const connection = this.database.object('.info/connected').valueChanges().pipe(
+        map(connected => connected ? 'online' : 'offline')
+    );
+
+    return this.afAuth.authState.pipe(
+        switchMap(user =>  user ? connection : of('offline')),
+        tap(status => this.setPresence(status))
+    );
   }
 
-  updateimage(imageurl) {
-    const promise = new Promise((resolve, reject) => {
-      this.afireAuth.auth.currentUser.updateProfile({
-        displayName: this.afireAuth.auth.currentUser.displayName,
-        photoURL: imageurl
-      }).then(() => {
-        this.firedata.child(this.afireAuth.auth.currentUser.uid).update({photoURL: imageurl}).then(() => {
-          firebase.database().ref('/users/' + firebase.auth().currentUser.uid).update({
-            displayName: this.afireAuth.auth.currentUser.displayName,
-            photoURL: imageurl,
-            uid: firebase.auth().currentUser.uid
-          }).then(() => {
-            resolve({ success: true });
-          }).catch((err) => {
-            reject(err);
-          });
-        });
-      }).catch((err) => {
-        reject(err);
-      });
-    });
-    return promise;
+  getPresence(uid: string) {
+    return this.database.object(`status/${uid}`).valueChanges();
   }
 
-  getuserdetails() {
-    const promise = new Promise((resolve , reject) => {
-      this.firedata.child(firebase.auth().currentUser.uid).once('value', (snapshot) => {
-        resolve(snapshot.val());
-      }).catch((err) => {
-        reject(err);
-      });
-    });
-    return promise;
+  getUser() {
+    return this.afAuth.authState.pipe(first()).toPromise();
   }
 
-  updatedisplayname(newname) {
-    const promise = new Promise((resolve, reject) => {
-      this.afireAuth.auth.currentUser.updateProfile({
-        displayName: newname,
-        photoURL: this.afireAuth.auth.currentUser.photoURL
-      }).then(() => {
-        this.firedata.child(firebase.auth().currentUser.uid).update({
-          displayName: newname,
-          photoURL: this.afireAuth.auth.currentUser.photoURL,
-          uid: this.afireAuth.auth.currentUser.uid
-        }).then(() => {
-          resolve({ success: true });
-        }).catch((err) => {
-          reject(err);
-        });
-      }).catch((err) => {
-        reject(err);
-      });
-    });
-    return promise;
+
+  async setPresence(status: string) {
+    const user = await this.getUser();
+    if (user) {
+      return this.database.object(`status/${user.uid}`).update({ status, timestamp: this.timestamp });
+    }
   }
 
-  getallusers() {
-    const promise = new Promise((resolve, reject) => {
-      this.firedata.orderByChild('uid').once('value', (snapshot) => {
-        const userdata = snapshot.val();
-        const temparr = [];
-        for (const key in userdata) {
-          temparr.push(userdata[key]);
-        }
-        resolve(temparr);
-      }).catch((err) => {
-        reject(err);
-      });
-    });
-    return promise;
+  get timestamp() {
+    return firebase.database.ServerValue.TIMESTAMP;
   }
+
+  updateOnDisconnect() {
+    return this.afAuth.authState.pipe(
+        tap(user => {
+          if (user) {
+            this.database.object(`status/${user.uid}`).query.ref.onDisconnect()
+                .update({
+                  status: 'offline',
+                  timestamp: this.timestamp
+                });
+          }
+        })
+    );
+  }
+
+  async signOut() {
+    await this.setPresence('offline');
+    await this.afAuth.auth.signOut().then(() => {
+      this.navCtrl.navigateRoot(['/']);
+    });
+  }
+
+  updateOnAway() {
+    document.onvisibilitychange = (e) => {
+      if (document.visibilityState === 'hidden') {
+        this.setPresence('away');
+      } else {
+        this.setPresence('online');
+      }
+    };
+  }
+
 }
