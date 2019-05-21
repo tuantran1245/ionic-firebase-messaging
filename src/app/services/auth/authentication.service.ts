@@ -7,6 +7,7 @@ import { AngularFireAuth } from '@angular/fire/auth';
 import { AlertController, NavController } from '@ionic/angular';
 import { AngularFirestore, AngularFirestoreDocument } from '@angular/fire/firestore';
 import { AngularFireDatabase } from '@angular/fire/database';
+import { LoadingIndicator } from '../../utils/LoadingIndicator';
 
 interface UserCertificate {
   uid: string;
@@ -29,7 +30,8 @@ export class AuthenticationService {
               public afStore: AngularFirestore,
               private navCtrl: NavController,
               private alertController: AlertController,
-              private database: AngularFireDatabase) {
+              private database: AngularFireDatabase,
+              private loadingIndicator: LoadingIndicator) {
     //// Get auth data, then get firestore user document || null
     this.user = this.afAuth.authState.pipe(switchMap(user => {
       if (user) {
@@ -47,11 +49,13 @@ export class AuthenticationService {
       const provider = new firebase.auth.GoogleAuthProvider();
       provider.addScope('profile');
       provider.addScope('email');
+      this.loadingIndicator.presentLoading();
       this.afAuth.auth.signInWithPopup(provider).then((credential) => { // get uid
             this.afStore.doc(`users/${credential.user.uid}`).ref.get() // get full doc belongs to that id
                 .then((userRef) => {
                   this.updateStatusOnConnected();
                   this.updateStatusWhenDisconnected();
+                  this.loadingIndicator.dismissLoading();
                   console.log('uid: ', credential.user.uid);
                   if (userRef.exists) { // this user has a doc on database
                     this.navCtrl.navigateRoot('lobby');
@@ -98,7 +102,9 @@ export class AuthenticationService {
           text: 'Ok',
           handler: (inputData) => {
             if (inputData.nickName.trim() && inputData.dob && inputData.gender.trim()) {
+              this.loadingIndicator.presentLoading();
               this.updateUserData(userCreds, inputData).then(() => {
+                this.loadingIndicator.dismissLoading();
                 this.navCtrl.navigateRoot('lobby');
               });
             } else {
