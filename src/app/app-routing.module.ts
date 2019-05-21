@@ -6,6 +6,7 @@ const routes: Routes = [
   { path: 'home', loadChildren: './home/home.module#HomePageModule' },
   // { path: 'login', component: LoginComponent, canActivate: [AuthGuard] },
   { path: 'login', loadChildren: './login/login.module#LoginPageModule' },
+  { path: 'chat', loadChildren: './chat/chat.module#ChatPageModule' },
 ];
 
 @NgModule({

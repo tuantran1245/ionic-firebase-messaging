@@ -1,5 +1,7 @@
 {
   "name": "firebase-chat-demo",
-  "integrations": {},
+  "integrations": {
+    "cordova": {}
+  },
   "type": "angular"
 }
