@@ -1,13 +1,12 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, of } from 'rxjs';
+import { Observable, of } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 
 import * as firebase from 'firebase/app';
 import { AngularFireAuth } from '@angular/fire/auth';
 import { AlertController, NavController } from '@ionic/angular';
 import { AngularFirestore, AngularFirestoreDocument } from '@angular/fire/firestore';
-import { switchMap } from 'rxjs/operators';
-import { User } from 'firebase';
-import { el } from '@angular/platform-browser/testing/src/browser_util';
+import { AngularFireDatabase } from '@angular/fire/database';
 
 interface UserCertificate {
   uid: string;
@@ -15,6 +14,7 @@ interface UserCertificate {
   nickName: string;
   dob: string;
   gender: string;
+  status: string;
 }
 
 @Injectable({
@@ -23,13 +23,18 @@ interface UserCertificate {
 export class AuthenticationService {
   user: Observable<UserCertificate>;
 
+  userId: string;
+
   constructor(public afAuth: AngularFireAuth,
               public afStore: AngularFirestore,
               private navCtrl: NavController,
-              private alertController: AlertController) {
+              private alertController: AlertController,
+              private database: AngularFireDatabase) {
     //// Get auth data, then get firestore user document || null
     this.user = this.afAuth.authState.pipe(switchMap(user => {
       if (user) {
+        this.userId = user.uid;
+
         return this.afStore.doc<UserCertificate>(`users/${user.uid}`).valueChanges();
       } else {
         return of(null);
@@ -42,14 +47,14 @@ export class AuthenticationService {
       const provider = new firebase.auth.GoogleAuthProvider();
       provider.addScope('profile');
       provider.addScope('email');
-      this.afAuth.auth.signInWithPopup(provider)
-          .then((credential) => {
-            this.afStore.doc(`users/${credential.user.uid}`).ref.get()
+      this.afAuth.auth.signInWithPopup(provider).then((credential) => { // get uid
+            this.afStore.doc(`users/${credential.user.uid}`).ref.get() // get full doc belongs to that id
                 .then((userRef) => {
+                  this.updateStatusOnConnected();
+                  this.updateStatusWhenDisconnected();
                   console.log('uid: ', credential.user.uid);
-                  console.log('user Reference: ', userRef);
                   if (userRef.exists) { // this user has a doc on database
-                    this.navCtrl.navigateRoot('chat');
+                    this.navCtrl.navigateRoot('lobby');
                   } else { // user data has not been set.
                     this.showUserDataPrompt(credential);
                   }
@@ -94,7 +99,7 @@ export class AuthenticationService {
           handler: (inputData) => {
             if (inputData.nickName.trim() && inputData.dob && inputData.gender.trim()) {
               this.updateUserData(userCreds, inputData).then(() => {
-                this.navCtrl.navigateRoot('chat');
+                this.navCtrl.navigateRoot('lobby');
               });
             } else {
               return false; // prevent prompt to close
@@ -126,6 +131,24 @@ export class AuthenticationService {
     this.afAuth.auth.signOut().then(() => {
       this.navCtrl.navigateRoot(['/']);
     });
+  }
+
+  private updateUserStatus(userStatus) { // online/offline
+    if (!this.userId) { return; }
+    this.database.object(`users/${this.userId}`).update({ status: userStatus });
+  }
+
+  private updateStatusOnConnected() { // update status
+    return this.database.object('.info/connected').valueChanges()
+        .subscribe((isConnected) => {
+          console.log(`Is connected: ${isConnected}`);
+          isConnected ? this.updateUserStatus('online') : this.updateUserStatus( 'offline');
+        });
+  }
+
+  private updateStatusWhenDisconnected() {
+    this.database.object(`users/${this.userId}`).query.ref.onDisconnect()
+        .update({status: 'offline'});
   }
 
 }
