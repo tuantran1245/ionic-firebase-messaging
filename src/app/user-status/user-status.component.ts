@@ -6,16 +6,32 @@ import { UserService } from '../services/user/user.service';
   templateUrl: './user-status.component.html',
   styleUrls: ['./user-status.component.scss'],
 })
-export class UserStatusComponent implements OnInit {
+export class UserStatusComponent {
 
   @Input() uid;
 
   presence;
 
+  imageUrl = {
+    online: '../assets/user-online.jpeg',
+    offline: '../assets/user-busy.png',
+    away: '../assets/user-away.png'
+  };
+
   constructor(public userService: UserService) {
     this.presence = this.userService.getPresence(this.uid);
   }
 
-  ngOnInit() {}
-
+  getOnlineStatusImage() {
+    this.presence.subscribe((status) => {
+      switch (status) {
+        case 'online':
+          return this.imageUrl.online;
+        case 'offline':
+          return this.imageUrl.offline;
+        case 'away':
+          return this.imageUrl.away;
+      }
+    });
+  }
 }

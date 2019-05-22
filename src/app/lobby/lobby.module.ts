@@ -6,6 +6,7 @@ import { Routes, RouterModule } from '@angular/router';
 import { IonicModule } from '@ionic/angular';
 
 import { LobbyPage } from './lobby.page';
+import { UserStatusComponent } from '../user-status/user-status.component';
 
 const routes: Routes = [
   {
@@ -21,6 +22,9 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes)
   ],
-  declarations: [LobbyPage]
+  declarations: [
+      LobbyPage,
+      UserStatusComponent
+  ]
 })
 export class LobbyPageModule {}

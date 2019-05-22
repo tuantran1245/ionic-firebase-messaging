@@ -15,7 +15,6 @@ interface UserCertificate {
   nickName: string;
   dob: string;
   gender: string;
-  status: string;
 }
 
 @Injectable({

@@ -5,6 +5,7 @@ import { AngularFireDatabase } from '@angular/fire/database';
 import { first, map, switchMap, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { NavController } from '@ionic/angular';
+import { AngularFirestore } from '@angular/fire/firestore';
 
 @Injectable({
   providedIn: 'root'
@@ -12,6 +13,7 @@ import { NavController } from '@ionic/angular';
 export class UserService {
   constructor(private afAuth: AngularFireAuth,
               private database: AngularFireDatabase,
+              public afStore: AngularFirestore,
               private navCtrl: NavController) {
     this.updateOnUser().subscribe();
     this.updateOnDisconnect().subscribe();
@@ -33,15 +35,18 @@ export class UserService {
     return this.database.object(`status/${uid}`).valueChanges();
   }
 
-  getUser() {
+  getCurrentUser() {
     return this.afAuth.authState.pipe(first()).toPromise();
   }
 
+  getAllUsers() {
+    return this.afStore.collection('users').valueChanges();
+  }
 
   async setPresence(status: string) {
-    const user = await this.getUser();
+    const user = await this.getCurrentUser();
     if (user) {
-      return this.database.object(`status/${user.uid}`).update({ status, timestamp: this.timestamp });
+      return this.database.object(`status/${user.uid}`).update({ status });
     }
   }
 

@@ -1,8 +1,11 @@
-<div *ngIf="presence | async as presence" class="tag is-large"
+<div class="led-box">
+
+</div>
+<div *ngIf="presence | async as presence"
      [ngClass]="{
-          'is-success':  presence.status  === 'online',
-          'is-warning': presence.status  === 'away',
-          'is-danger':  presence.status  === 'offline'
+          'led-green':  presence.status  === 'online',
+          'led-yellow': presence.status  === 'away',
+          'led-red':  presence.status  === 'offline'
       }"
 >
 
